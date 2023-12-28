@@ -1,0 +1,373 @@
+package cs3500.set.model.hw03;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import cs3500.set.model.hw02.Cards;
+import cs3500.set.model.hw02.Coord;
+import cs3500.set.model.hw02.Count;
+import cs3500.set.model.hw02.Filling;
+import cs3500.set.model.hw02.SetGameModel;
+import cs3500.set.model.hw02.Shape;
+
+public class GeneralSetGameModel implements SetGameModel<Cards> {
+  protected Cards[][] board;
+  protected int row;
+  protected int col;
+  protected int score;
+
+  protected List<Cards> cardList;
+  protected boolean hasStarted = false;
+  protected boolean isOver = false;
+  protected int height;
+  protected int width;
+
+  public GeneralSetGameModel() {
+    cardList = new ArrayList<>();
+    // this.board = new Cards[row][col];
+
+  }
+
+  /**
+   * If the cards at the specified coordinates form a valid set, claim it,
+   * and replace those cards with new cards from the deck, if possible.
+   *
+   * @param coord1 the coordinates of the first card
+   * @param coord2 the coordinates of the second card
+   * @param coord3 the coordinates of the third card
+   * @throws IllegalArgumentException if any of the coordinates are invalid for the particular
+   *                                  implementation of Set OR the cards at those coordinates
+   *                                  do not form a set
+   * @throws IllegalStateException    if the game has not started or the game has already ended
+   */
+  @Override
+  public void claimSet(Coord coord1, Coord coord2, Coord coord3) {
+    if (!hasStarted) {
+      throw new IllegalStateException("Game has not started");
+    }
+    if (!coordinateCheck(coord1, coord2, coord3)) {
+      throw new IllegalArgumentException("Not valid coordinates");
+    }
+    if (!isValidSet(coord1, coord2, coord3)) {
+      throw new IllegalArgumentException("Not valid Set");
+    }
+
+    if (isValidSet(coord1, coord2, coord3)) {
+      this.score++;
+      if (!isGameOver()) {
+        if (cardList.size() < 3) {
+          this.isOver = true;
+        } else {
+          this.board[coord1.row][coord1.col] = cardList.get(0);
+          cardList.remove(0);
+          this.board[coord2.row][coord2.col] = cardList.get(0);
+          cardList.remove(0);
+          this.board[coord3.row][coord3.col] = cardList.get(0);
+          cardList.remove(0);
+        }
+        if (cardList.size() > 3 && !anySetsPresent()) {
+          this.row++;
+          for (int r = row - 1; row < this.board.length; row++) {
+            for (col = 0; col < this.board.length; col++) {
+              Coord c = new Coord(this.row, this.col);
+              board[c.row][c.col] = cardList.get(0);
+              cardList.remove(0);
+            }
+          }
+        } else if (isGameOver()) {
+          throw new IllegalStateException("Game is Over");
+        }
+
+      }
+
+    }
+  }
+
+
+  private boolean coordinateCheck(Coord coord1, Coord coord2, Coord coord3)
+          throws IllegalArgumentException {
+    if ((coord1.row >= this.row) || coord1.row < 0) {
+      throw new IllegalArgumentException("coordinate is out of grid");
+    } else if ((coord1.col >= this.col) || coord1.col < 0) {
+      throw new IllegalArgumentException("coordinate is out of grid");
+    } else if (coord2.row >= this.row || coord2.row < 0) {
+      throw new IllegalArgumentException("coordinate is out of grid");
+    } else if ((coord3.col >= this.col) || coord3.col < 0) {
+      throw new IllegalArgumentException("coordinate is out of grid");
+    } else if (coord3.row >= this.row || coord3.row < 0) {
+      throw new IllegalArgumentException("coordinate is out of grid");
+    } else {
+      return true;
+    }
+  }
+
+  /**
+   * Begins the game using the cards given by the deck creates a grid specified
+   * by the height and width parameters.
+   * <p>
+   * Specifically, the model deals the cards onto the board from left to right and top to bottom,
+   * filling the grid.
+   * </p>
+   *
+   * @param deck   the list of cards in the order they will be played
+   * @param height the height of the board for this game
+   * @param width  the width of the board for this game
+   * @throws IllegalArgumentException if the deck does not have enough cards to deal to the grid
+   *                                  OR the deck is null
+   *                                  OR the width and height are invalid for
+   *                                  a particular implementation of Set
+   */
+  @Override
+  public void startGameWithDeck(List<Cards> deck, int height, int width) throws IllegalArgumentException {
+
+    if (width <= 0 || height <= 0) {
+      throw new IllegalArgumentException("Grid is not 3 high and wide");
+    } else if (deck.size() < 3) {
+      throw new IllegalArgumentException("Not enough cards to start game");
+    } else if (deck == null) {
+      throw new IllegalArgumentException("Invalid input.");
+    } else if (deck.size() < (height * width)) {
+      throw new IllegalArgumentException("Not enough cards to fill given grid");
+
+
+    }
+    this.height = height;
+    this.width = width;
+    this.hasStarted = true;
+    this.cardList = deck;
+    this.board = new Cards[width][height];
+    //cardList = getCompleteDeck();
+    for (row = 0; row < this.board.length; row++) {
+      for (col = 0; col < this.board.length; col++) {
+        Coord c = new Coord(this.row, this.col);
+        board[c.row][c.col] = deck.get(0);
+        deck.remove(0);
+      }
+    }
+    if (!anySetsPresent()) {
+      throw new IllegalArgumentException("No Sets present in deck");
+    }
+
+  }
+
+  /**
+   * Return the width of the grid for this game of Set.
+   *
+   * @return the width of the grid
+   * @throws IllegalStateException if the game has not yet started
+   */
+  @Override
+  public int getWidth() throws IllegalStateException {
+    if (!hasStarted) {
+      throw new IllegalStateException("Game has not started");
+    }
+    return this.width;
+  }
+
+
+  /**
+   * Return the height of the grid for this game of Set.
+   *
+   * @return the height of the grid
+   * @throws IllegalStateException if the game has not yet started
+   */
+  @Override
+  public int getHeight() throws IllegalStateException {
+    if (!hasStarted) {
+      throw new IllegalStateException("Game has not started");
+    }
+    return this.height;
+
+  }
+
+  /**
+   * Returns how many sets the player has collected so far.
+   *
+   * @return the player's current score
+   * @throws IllegalStateException if the game has not yet started
+   */
+  @Override
+  public int getScore() throws IllegalStateException {
+    if (!hasStarted) {
+      throw new IllegalStateException("Game has not started");
+    }
+    return score;
+  }
+
+  /**
+   * Returns true if and only if there are any sets in the currently dealt board.
+   *
+   * @return if there are any sets available
+   * @throws IllegalStateException if the game has not yet started
+   */
+  @Override
+  public boolean anySetsPresent() {
+    if (!hasStarted) {
+      throw new IllegalStateException("Game has not started");
+    }
+    Coord[] coordBoard = new Coord[9];
+    int k = 0;
+    // create single dimension array to assign to board
+    for (int i = 0; i < board.length; i++) {
+      for (int j = 0; j < board.length; j++) {
+        coordBoard[k] = new Coord(i, j);
+        k++;
+      }
+    }
+    //checks to see if valid set returns true
+    for (int i = 0; i < board.length; i++) {
+      for (int j = 0; j < board.length; j++) {
+        for (int x = 0; x < board.length; x++) {
+          if (isValidSet(coordBoard[i], coordBoard[j], coordBoard[x])) {
+            return true;
+          }
+
+        }
+      }
+    }
+    return false;
+  }
+
+
+
+  /**
+   * Returns true if cards at the specified coordinates form a valid set.
+   *
+   * @param coord1 the coordinates of the first card
+   * @param coord2 the coordinates of the second card
+   * @param coord3 the coordinates of the third card
+   * @return whether the cards form a valid set
+   * @throws IllegalArgumentException if any of the coordinates are invalid for the given
+   *                                  implementation of Set
+   */
+  @Override
+  public boolean isValidSet(Coord coord1, Coord coord2, Coord coord3) throws IllegalArgumentException {
+    if (!hasStarted) {
+      throw new IllegalStateException("Game has not started");
+    }
+    coordinateCheck(coord1, coord2, coord3);
+    Boolean valid = false;
+    char[] card_one = new char[3];
+    char[] card_two = new char[3];
+    char[] card_three = new char[3];
+
+    for (int i = 0; i < 3; i++) {
+      card_one[i] = getCardAtCoord(coord1).toString().charAt(i);
+      card_two[i] = getCardAtCoord(coord2).toString().charAt(i);
+      card_three[i] = getCardAtCoord(coord3).toString().charAt(i);
+    }
+
+    if ((isCountValid(card_one, card_two, card_three)) &&
+            (isFillingValid(card_one, card_two, card_three)) &&
+            (isShapeValid(card_one, card_two, card_three))) {
+
+      valid = true;
+    }
+    return valid;
+
+  }
+
+
+  private boolean isCountValid(char[] c1, char[] c2, char[] c3) {
+    if ((c1[0] == (c2[0])) && (c2[0] == c3[0])) {
+      return true;
+    } else if((c1[0] != (c2[0])) && (c2[0] != c3[0]) &&
+            (c1[0] != c3[0])) {
+      return true;
+    }
+    return false;
+  }
+
+  private boolean isFillingValid(char[] c1, char[] c2, char[] c3) {
+    if ((c1[1] == (c2[1])) && (c2[1] == c3[1])) {
+      return true;
+    } else {
+      return ((c1[1] != (c2[1])) && (c2[1] != c3[1]) &&
+              (c1[1] != c3[1]));
+    }
+  }
+
+  private boolean isShapeValid(char[] c1, char[] c2, char[] c3) {
+    if ((c1[2] == (c2[2])) && (c2[2] == c3[2])) {
+      return true;
+    } else {
+      return ((c1[2] != (c2[2])) && (c2[2] != c3[2]) &&
+              (c1[2] != c3[2]));
+    }
+  }
+
+  /**
+   * Returns the card at the specified row and column coordinates.
+   *
+   * @param row the row of the desired card
+   * @param col the column of the desired card
+   * @return the card at the specified coordinates
+   * @throws IllegalStateException if the game has not yet started
+   */
+  @Override
+  public Cards getCardAtCoord(int row, int col) {
+    return board[row][col];
+  }
+
+  /**
+   * Returns the card at the specified coordinates.
+   *
+   * @param coord the coordinates of the desired card
+   * @return the card at the specified coordinates
+   * @throws IllegalStateException if the game has not yet started
+   */
+  @Override
+  public Cards getCardAtCoord(Coord coord) {
+    int row = coord.row;
+    int col = coord.col;
+
+    return board[row][col];
+  }
+
+  /**
+   * Return true when the game is over. That happens when
+   * <ul>
+   *   <li>there no sets on the current board OR</li>
+   *   <li>there are not enough cards remaining in the deck to deal after claiming a set</li>
+   * </ul>
+   *
+   * @return whether the game is over
+   */
+  @Override
+  public boolean isGameOver() {
+    if (cardList == null) {
+      this.isOver = true;
+    }
+    if(cardList.size() < 3){
+      this.isOver = true;
+    }
+
+    return this.isOver;
+  }
+
+
+  /**
+   * Craft and return a new complete deck for the implemented game.
+   * This deck must contain every possible card possible in the implemented game
+   * exactly once.
+   * There is no required/sorted order for the cards in this deck.
+   *
+   * @return the complete deck of cards
+   */
+  @Override
+  public List<Cards> getCompleteDeck() {
+    List<Cards> l1 = new ArrayList<>();
+    Filling.values();
+    for (Filling filling : Filling.values()) {
+      for (Count count : Count.values()) {
+        for (Shape shape : Shape.values()) {
+          l1.add(new Cards(count, filling, shape));
+
+        }
+      }
+    }
+    return l1;
+  }
+
+}
+
