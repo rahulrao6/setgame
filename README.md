@@ -39,4 +39,3 @@ controller.playGame();
 
 
 
-This README is designed to provide a comprehensive understanding of the SetGame project, making it an ideal addition to your GitHub repository for potential collaborators and employers.
